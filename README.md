@@ -32,14 +32,24 @@ The settings API requires an admin account.
 
 ## Install
 
-1. Create a GitHub release (see [Releasing](#releasing)) or grab a prebuilt `.deb` from
-   this repository's releases.
-2. In MOS: **Plugins -> Install plugin** from this repository, or install the `.deb`
-   manually with `dpkg -i`.
-3. **Plugins -> Tasmota Energy Monitor**: add your devices (name, IP, optional
-   username/password), set refresh interval, electricity price and currency, then **Save**.
-   Use the per-device **Test** button to verify connectivity before saving.
-4. Add the widget: **Dashboard -> edit -> add card -> Tasmota Energy**.
+The plugin is distributed as a `.deb` attached to the GitHub
+[releases](https://github.com/jon-rei/mos-tasmota/releases). Installation through the
+MOS Hub will follow once this plugin is available in a Hub repository.
+
+Until then, install manually on the MOS host: download the latest `.deb` from the
+[releases page](https://github.com/jon-rei/mos-tasmota/releases/latest) and run:
+
+```bash
+dpkg -i tasmota-energy-<version>-1+mos-plugin_all.deb
+```
+
+After installing, configure it: **Plugins -> Tasmota Energy Monitor** — add your
+devices (name, IP, optional username/password), set refresh interval, electricity
+price and currency, then **Save** (the per-device **Test** button verifies
+connectivity). Add the widget via **Dashboard -> edit**.
+
+Requires an admin account in MOS, and the MOS host must be able to reach the Tasmota
+device over HTTP (`curl http://<device-ip>/cm?cmnd=Status%208` should return JSON).
 
 ## Device setup notes
 
@@ -72,11 +82,8 @@ The GitHub Actions workflow builds the Vue plugin and packages it as
 `tasmota-energy-<version>-1+mos-plugin_all.deb` when a tag is pushed:
 
 ```bash
-git tag 0.1.0 && git push origin 0.1.0
+git tag v0.0.1 && git push origin v0.0.1
 ```
-
-Repository settings -> Actions -> General -> Workflow permissions must allow
-**Read and write permissions**.
 
 The `.deb` carries both the built frontend (`/var/www/mos-plugins/tasmota-energy/`,
 served at `/_plugins/tasmota-energy/`) and the poll script (`/usr/bin/plugins/`).

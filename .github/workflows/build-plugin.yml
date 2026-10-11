@@ -3,13 +3,13 @@ name: Build and Release
 on:
   push:
     tags:
-      - '[0-9]*'
+      - 'v[0-9]*'
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version (e.g. 0.1.0)'
+        description: 'Version (e.g. 0.0.1)'
         required: true
-        default: '0.1.0'
+        default: '0.0.1'
 
 permissions:
   contents: write
@@ -28,7 +28,7 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             VERSION="${{ github.event.inputs.version }}"
           else
-            VERSION="${GITHUB_REF#refs/tags/}"
+            VERSION="${GITHUB_REF#refs/tags/v}"
           fi
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
@@ -75,8 +75,8 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.version.outputs.VERSION }}
-          name: Tasmota Energy Monitor ${{ steps.version.outputs.VERSION }}
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          name: v${{ steps.version.outputs.VERSION }}
           files: |
             tasmota-energy-${{ steps.version.outputs.VERSION }}-1+mos-plugin_all.deb
             tasmota-energy-${{ steps.version.outputs.VERSION }}-1+mos-plugin_all.deb.md5
