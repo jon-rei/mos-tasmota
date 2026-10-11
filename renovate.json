@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "packageRules": [
+    {
+      "description": "Group all plugin page npm updates into one PR",
+      "matchManagers": ["npm"],
+      "groupName": "npm dependencies"
+    }
+  ]
+}

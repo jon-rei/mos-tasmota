@@ -41,7 +41,7 @@ jobs:
         working-directory: page
         env:
           PLUGIN_VERSION: ${{ steps.version.outputs.VERSION }}
-        run: npm install && npm run build
+        run: npm ci && npm run build
 
       - name: Build .deb package
         run: |
