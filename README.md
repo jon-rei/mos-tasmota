@@ -46,6 +46,8 @@ The plugin is available through the MOS Hub via my template repository
 4. Configure it: **Plugins -> Tasmota Energy Monitor** — add your devices (name, IP,
    optional username/password), set refresh interval, electricity price and currency,
    then **Save** (the per-device **Test** button verifies connectivity).
+   The electricity price is per kWh **in your currency's main unit**, e.g. `0.33` for
+   33 cents — entering it in cents (e.g. `33.44`) is rejected with an error message.
 5. Add the widget: **Dashboard -> edit -> add the Tasmota Energy card**.
 
 Requires an admin account in MOS, and the MOS host must be able to reach the Tasmota
@@ -62,11 +64,17 @@ device over HTTP (`curl http://<device-ip>/cm?cmnd=Status%208` should return JSO
 
 ## Local development
 
+Build the frontend in a Node 22 container — no local Node/npm installation needed:
+
 ```bash
-cd page
-npm install
-npm run build     # builds dist/tasmota-energy/ (remoteEntry.js + manifest.json)
+docker run --rm --userns=keep-id -e HOME=/tmp -v $PWD/page:/app -w /app node:22-alpine \
+  sh -c "npm install && npm run build"
 ```
+
+This produces `page/dist/tasmota-energy/` (`remoteEntry.js`, `manifest.json` and
+the federation chunks; the icon is the `mdi-flash` name referenced in
+`manifest.json`, not a file). On a plain Docker daemon (not rootless podman) use
+`-u $(id -u):$(id -g)` instead of `--userns=keep-id`.
 
 Test the poll script standalone against a device:
 

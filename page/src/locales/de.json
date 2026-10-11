@@ -12,6 +12,8 @@
     "device_password": "Passwort (optional)",
     "interval": "Aktualisierungsintervall (Sekunden)",
     "price": "Strompreis pro kWh",
+    "price_hint": "In deiner Währung, z. B. 0,33 für 33 Cent — nicht in Cent",
+    "price_error": "Das sieht nach einem Preis in Cent aus. Gib ihn stattdessen pro kWh in deiner Währung ein, z. B. 0,33 für 33 Cent.",
     "currency": "Währung",
     "save": "Speichern",
     "saved": "Gespeichert",

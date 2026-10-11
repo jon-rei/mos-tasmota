@@ -23,10 +23,13 @@
               type="number"
               min="0"
               step="0.01"
+              :suffix="form.currency"
               :label="$t('plugin_tasmota_energy.price')"
+              :hint="$t('plugin_tasmota_energy.price_hint')"
+              persistent-hint
+              :error-messages="priceError ? [$t('plugin_tasmota_energy.price_error')] : []"
               density="compact"
               variant="outlined"
-              hide-details
             />
           </v-col>
           <v-col cols="6" sm="4" md="2">
@@ -234,6 +237,10 @@ const poll = usePolling(refresh, 5);
 const hasPrice = computed(() => num(savedSettings.value.price) > 0);
 const costFmt = (v) => (v === null ? '-' : v.toFixed(2) + ' ' + savedSettings.value.currency);
 
+// No real-world electricity price reaches 1 per kWh, so anything >= 1 is
+// almost certainly entered in cents (e.g. 33.44 instead of 0.33).
+const priceError = computed(() => num(form.value.price) >= 1);
+
 const testDevice = async (i) => {
   const d = form.value.devices[i];
   if (!d?.ip) return;
@@ -259,6 +266,11 @@ const save = async () => {
   saving.value = true;
   saved.value = false;
   saveFailed.value = false;
+  if (priceError.value) {
+    saving.value = false;
+    saveFailed.value = true;
+    return;
+  }
   const s = {
     interval: Math.max(2, Number(form.value.interval) || DEFAULT_SETTINGS.interval),
     price: Number(form.value.price) || 0,

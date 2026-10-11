@@ -35,13 +35,17 @@
         />
       </div>
 
+      <div class="te-divider"></div>
+
       <div v-for="d in results" :key="d.ip + d.name" class="te-row d-flex align-center">
         <v-icon v-if="d.ok" size="18" color="green" class="mr-1">mdi-power-plug</v-icon>
         <v-icon v-else size="18" color="error" class="mr-1" :title="d.error">mdi-power-plug-off</v-icon>
         <div class="te-text">
           <div class="text-body-2 te-name" :title="d.name">{{ d.name }}</div>
-          <div class="text-caption text-medium-emphasis te-sub">
-            <template v-if="d.ok">{{ $t('plugin_tasmota_energy.today') }} {{ fmt(d.today, 3) }} kWh · {{ $t('plugin_tasmota_energy.total') }} {{ fmt(d.total, 3) }} kWh</template>
+          <div class="text-caption te-sub" :class="d.ok ? 'text-medium-emphasis' : 'text-error'" :title="d.ok ? undefined : d.error">
+            <template v-if="d.ok">
+              {{ $t('plugin_tasmota_energy.today') }} {{ fmt(d.today, 3) }} kWh · {{ $t('plugin_tasmota_energy.total') }} {{ fmt(d.total, 3) }} kWh
+            </template>
             <template v-else>{{ d.error }}</template>
           </div>
         </div>
@@ -77,6 +81,10 @@ onUnmounted(() => poll.stop());
 </script>
 
 <style scoped>
+.te-divider {
+  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  margin-bottom: 4px;
+}
 .te-row {
   gap: 8px;
   padding: 3px 0;

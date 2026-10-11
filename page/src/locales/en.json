@@ -12,6 +12,8 @@
     "device_password": "Password (optional)",
     "interval": "Refresh interval (seconds)",
     "price": "Electricity price per kWh",
+    "price_hint": "In your currency, e.g. 0.33 for 33 cents — not in cents",
+    "price_error": "This looks like a price in cents. Enter it per kWh in your currency instead, e.g. 0.33 for 33 cents.",
     "currency": "Currency",
     "save": "Save",
     "saved": "Saved",
