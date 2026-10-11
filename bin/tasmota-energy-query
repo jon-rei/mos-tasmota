@@ -1,0 +1,140 @@
+#!/bin/bash
+# tasmota-energy-query - poll Tasmota devices for energy metrics.
+#
+# Called by the tasmota-energy MOS plugin frontend through
+#   POST /api/v1/mos/plugins/query  {command: "tasmota-energy-query", args: [], ...}
+# which only executes binaries located in /usr/bin/plugins/.
+#
+# Usage:
+#   tasmota-energy-query                       poll all devices from settings.json
+#   tasmota-energy-query <ip> [user password]   poll a single device (connection test)
+#
+# Output: one JSON object on stdout:
+#   {
+#     "ok": true,
+#     "devices": [
+#       { "name", "ip", "ok", "error",
+#         "power", "apparent_power", "reactive_power", "factor",
+#         "voltage", "current", "today", "yesterday", "total", "period" }
+#     ],
+#     "totals": { "power", "apparent_power", "reactive_power",
+#                 "today", "yesterday", "total" }
+#   }
+# On a hard failure (e.g. settings missing): { "ok": false, "error": "..." }
+# Always exits 0 so the query API reports success and the frontend gets
+# the structured error instead of a bare exit code.
+#
+# Requires: bash, curl, jq (declared as .deb Depends).
+
+set -u
+
+SETTINGS="${TASMOTA_ENERGY_SETTINGS:-/boot/optional/plugins/tasmota-energy/settings.json}"
+CURL_TIMEOUT=5
+CURL_CONNECT_TIMEOUT=3
+
+uri() { printf '%s' "$1" | jq -Rr @uri; }
+
+fail() {
+  jq -cn --arg msg "$1" '{ok: false, error: $msg}'
+  exit 0
+}
+
+command -v jq >/dev/null 2>&1 || fail "jq not found on the MOS host"
+command -v curl >/dev/null 2>&1 || fail "curl not found on the MOS host"
+
+# Poll one device. Writes the per-device result JSON to the file given as $5.
+#   poll <name> <ip> <user> <password> <outfile>
+poll() {
+  local name="$1" ip="$2" user="$3" pass="$4" out="$5"
+  local url="http://${ip}/cm?"
+  if [ -n "$user" ] || [ -n "$pass" ]; then
+    url="${url}user=$(uri "$user")&password=$(uri "$pass")&"
+  fi
+  url="${url}cmnd=Status%208"
+
+  local body
+  if ! body=$(curl --silent --show-error -m "$CURL_TIMEOUT" \
+                   --connect-timeout "$CURL_CONNECT_TIMEOUT" "$url" 2>/dev/null); then
+    jq -cn --arg name "$name" --arg ip "$ip" \
+      '{name: $name, ip: $ip, ok: false, error: "unreachable"}' > "$out"
+    return
+  fi
+
+  if ! jq -e 'has("StatusSNS")' >/dev/null 2>&1 <<<"$body"; then
+    jq -cn --arg name "$name" --arg ip "$ip" \
+      '{name: $name, ip: $ip, ok: false, error: "no energy data (wrong credentials or not an energy-monitoring Tasmota)"}' > "$out"
+    return
+  fi
+
+  jq -cn --arg name "$name" --arg ip "$ip" --argjson body "$body" '
+    $body.StatusSNS.ENERGY as $e |
+    {
+      name: $name,
+      ip: $ip,
+      ok: true,
+      power: ($e.Power // null),
+      apparent_power: ($e.ApparentPower // null),
+      reactive_power: ($e.ReactivePower // null),
+      factor: ($e.Factor // null),
+      voltage: ($e.Voltage // null),
+      current: ($e.Current // null),
+      today: ($e.Today // null),
+      yesterday: ($e.Yesterday // null),
+      total: ($e.Total // null),
+      period: ($e.Period // null)
+    }' > "$out"
+}
+
+# Collect the devices to poll: either the single device given as arguments
+# (connection test from the settings page) or all devices from settings.json.
+declare -a NAMES=() IPS=() USERS=() PASSES=()
+if [ $# -ge 1 ]; then
+  NAMES+=("test")
+  IPS+=("$1")
+  USERS+=("${2:-}")
+  PASSES+=("${3:-}")
+else
+  [ -f "$SETTINGS" ] || fail "settings file not found at $SETTINGS - save the plugin settings first"
+  if ! jq -e 'has("devices")' >/dev/null 2>&1 <"$SETTINGS"; then
+    fail "invalid settings file at $SETTINGS"
+  fi
+  while IFS=$'\t' read -r name ip user pass; do
+    [ -n "$ip" ] || continue
+    NAMES+=("${name:-$ip}")
+    IPS+=("$ip")
+    USERS+=("$user")
+    PASSES+=("$pass")
+  done < <(jq -r '.devices[] | [(.name // ""), (.ip // ""), (.user // ""), (.password // "")] | @tsv' "$SETTINGS")
+fi
+
+TMPDIR_POLL=$(mktemp -d) || fail "could not create temp directory"
+trap 'rm -rf "$TMPDIR_POLL"' EXIT
+
+# Poll all devices in parallel so one slow/unreachable device does not
+# delay the others (each curl is bounded by its own timeout anyway).
+if [ "${#IPS[@]}" -eq 0 ]; then
+  jq -cn '{ok: true, devices: [], totals: {power: 0, apparent_power: 0, reactive_power: 0, today: 0, yesterday: 0, total: 0}}'
+  exit 0
+fi
+for i in "${!IPS[@]}"; do
+  poll "${NAMES[$i]}" "${IPS[$i]}" "${USERS[$i]}" "${PASSES[$i]}" "$TMPDIR_POLL/$i.json" &
+done
+wait
+
+# Merge per-device results and compute totals across the reachable ones.
+jq -s '
+  {
+    ok: true,
+    devices: .,
+    totals: (
+      [.[] | select(.ok == true)] as $up |
+      {
+        power: ([$up[] | .power // 0] | add // 0),
+        apparent_power: ([$up[] | .apparent_power // 0] | add // 0),
+        reactive_power: ([$up[] | .reactive_power // 0] | add // 0),
+        today: ([$up[] | .today // 0] | add // 0),
+        yesterday: ([$up[] | .yesterday // 0] | add // 0),
+        total: ([$up[] | .total // 0] | add // 0)
+      }
+    )
+  }' "$TMPDIR_POLL"/*.json
