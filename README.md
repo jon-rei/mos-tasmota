@@ -53,6 +53,17 @@ The plugin is available through the MOS Hub via my template repository
 Requires an admin account in MOS, and the MOS host must be able to reach the Tasmota
 device over HTTP (`curl http://<device-ip>/cm?cmnd=Status%208` should return JSON).
 
+## Settings
+
+All settings are configured on the plugin page (**Plugins -> Tasmota Energy Monitor**)
+
+| Setting | Default | Description |
+|---|---|---|
+| `devices` | `[]` | Devices to poll. Each device has a `name` (label in widget and table), an `ip` (device address, required — entries without one are dropped on save), and optional `user` / `password` for Tasmota web credentials. The **Test** button on the settings page verifies one device before saving. |
+| `interval` | `5` | Refresh interval in seconds, used for polling on both the plugin page and the widget. Values below 2 are clamped to 2. |
+| `price` | `0` | Electricity price per kWh **in the currency's main unit**, e.g. `0.33` for 33 cents. Saving a value >= 1 is rejected with an error message — it is almost certainly a cents entry. `0` disables the cost display. |
+| `currency` | `EUR` | Currency shown as suffix for costs (e.g. `EUR`, `USD`). Free text, no validation. |
+
 ## Device setup notes
 
 - The Tasmota device must run a firmware with energy monitoring enabled
