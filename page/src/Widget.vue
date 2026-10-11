@@ -17,31 +17,36 @@
       </v-btn>
     </div>
     <div v-else>
-      <div class="d-flex align-center mb-2" style="gap: 6px">
-        <v-chip size="small" variant="tonal" color="primary">
-          <v-icon start size="14">mdi-flash</v-icon>
-          {{ fmt(totals?.power, 1) }} W
-        </v-chip>
-        <v-chip size="small" variant="tonal">
-          {{ $t('plugin_tasmota_energy.today') }}: {{ fmt(totals?.today, 3) }} kWh
-        </v-chip>
-        <v-spacer />
-        <v-btn
-          size="x-small"
-          variant="text"
-          icon="mdi-cog"
-          :to="`/plugins/${PLUGIN}`"
-          :title="$t('plugin_tasmota_energy.open_settings')"
-        />
-      </div>
+      <template v-if="results.length > 1">
+        <div class="d-flex align-center mb-2" style="gap: 6px">
+          <v-chip size="small" variant="tonal" color="primary">
+            <v-icon start size="14">mdi-flash</v-icon>
+            {{ fmt(totals?.power, 1) }} W
+          </v-chip>
+          <v-chip size="small" variant="tonal">
+            {{ $t('plugin_tasmota_energy.today') }}: {{ fmt(totals?.today, 3) }} kWh
+          </v-chip>
+          <v-spacer />
+          <v-btn
+            size="x-small"
+            variant="text"
+            icon="mdi-cog"
+            :to="`/plugins/${PLUGIN}`"
+            :title="$t('plugin_tasmota_energy.open_settings')"
+          />
+        </div>
 
-      <div class="te-divider"></div>
+        <div class="te-divider"></div>
+      </template>
 
       <div v-for="d in results" :key="d.ip + d.name" class="te-row d-flex align-center">
         <v-icon v-if="d.ok" size="18" color="green" class="mr-1">mdi-power-plug</v-icon>
         <v-icon v-else size="18" color="error" class="mr-1" :title="d.error">mdi-power-plug-off</v-icon>
         <div class="te-text">
-          <div class="text-body-2 te-name" :title="d.name">{{ d.name }}</div>
+          <div class="d-flex align-baseline" style="gap: 8px">
+            <span class="text-body-2 te-name" :title="d.name">{{ d.name }}</span>
+            <span class="text-body-2 font-weight-medium te-power">{{ d.ok ? fmt(d.power, 1) + ' W' : '-' }}</span>
+          </div>
           <div class="text-caption te-sub" :class="d.ok ? 'text-medium-emphasis' : 'text-error'" :title="d.ok ? undefined : d.error">
             <template v-if="d.ok">
               {{ $t('plugin_tasmota_energy.today') }} {{ fmt(d.today, 3) }} kWh · {{ $t('plugin_tasmota_energy.total') }} {{ fmt(d.total, 3) }} kWh
@@ -49,7 +54,14 @@
             <template v-else>{{ d.error }}</template>
           </div>
         </div>
-        <span class="text-body-2 font-weight-medium">{{ d.ok ? fmt(d.power, 1) + ' W' : '-' }}</span>
+        <v-btn
+          v-if="results.length === 1"
+          size="x-small"
+          variant="text"
+          icon="mdi-cog"
+          :to="`/plugins/${PLUGIN}`"
+          :title="$t('plugin_tasmota_energy.open_settings')"
+        />
       </div>
 
       <div v-if="hasPrice" class="text-caption text-medium-emphasis mt-2">
@@ -96,6 +108,13 @@ onUnmounted(() => poll.stop());
 .te-text {
   flex: 1;
   min-width: 0;
+}
+.te-name {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.te-power {
+  flex-shrink: 0;
 }
 .te-name,
 .te-sub {
