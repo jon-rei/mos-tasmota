@@ -32,21 +32,21 @@ The settings API requires an admin account.
 
 ## Install
 
-The plugin is distributed as a `.deb` attached to the GitHub
-[releases](https://github.com/jon-rei/mos-tasmota/releases). Installation through the
-MOS Hub will follow once this plugin is available in a Hub repository.
+The plugin is available through the MOS Hub via my template repository
+[jon-rei/mos-templates](https://github.com/jon-rei/mos-templates):
 
-Until then, install manually on the MOS host: download the latest `.deb` from the
-[releases page](https://github.com/jon-rei/mos-tasmota/releases/latest) and run:
-
-```bash
-dpkg -i tasmota-energy-<version>-1+mos-plugin_all.deb
-```
-
-After installing, configure it: **Plugins -> Tasmota Energy Monitor** — add your
-devices (name, IP, optional username/password), set refresh interval, electricity
-price and currency, then **Save** (the per-device **Test** button verifies
-connectivity). Add the widget via **Dashboard -> edit**.
+1. In MOS: **Settings -> System Configuration -> MOS Hub Settings**, enable the Hub if
+   it is not already.
+2. Open **MOS Hub**, click the repositories icon, add
+   `https://github.com/jon-rei/mos-templates` to the repository list and save — MOS
+   clones and indexes the repository.
+3. **MOS Hub -> Plugins -> Tasmota Energy Monitor -> Install**, pick the release shown
+   (e.g. `v0.0.1`). MOS downloads the `.deb` from the release and installs it
+   (frontend -> `/var/www/mos-plugins/tasmota-energy/`, poll script -> `/usr/bin/plugins/`).
+4. Configure it: **Plugins -> Tasmota Energy Monitor** — add your devices (name, IP,
+   optional username/password), set refresh interval, electricity price and currency,
+   then **Save** (the per-device **Test** button verifies connectivity).
+5. Add the widget: **Dashboard -> edit -> add the Tasmota Energy card**.
 
 Requires an admin account in MOS, and the MOS host must be able to reach the Tasmota
 device over HTTP (`curl http://<device-ip>/cm?cmnd=Status%208` should return JSON).
