@@ -22,9 +22,10 @@ export const DEFAULT_SETTINGS = {
   devices: [], // { name, ip, user, password }
 };
 
-const authHeaders = () => ({
-  Authorization: 'Bearer ' + localStorage.getItem('authToken'),
-});
+const authHeaders = () => {
+  const token = localStorage.getItem('authToken');
+  return token ? { Authorization: 'Bearer ' + token } : {};
+};
 
 export async function loadSettings() {
   try {

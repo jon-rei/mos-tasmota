@@ -1,0 +1,33 @@
+name: CI
+
+# Lint and build on every push to main and on pull requests (e.g. Renovate),
+# so failures show up before a release tag is pushed.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: page/package-lock.json
+
+      - name: Lint poll script
+        run: shellcheck bin/tasmota-energy-query
+
+      - name: Build Vue plugin
+        working-directory: page
+        run: npm ci && npm run build

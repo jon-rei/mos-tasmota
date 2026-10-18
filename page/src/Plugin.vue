@@ -172,7 +172,7 @@
             <tr v-for="d in results" :key="d.ip + d.name">
               <td>
                 <div class="d-flex align-center" style="gap: 6px">
-                  <v-icon v-if="!d.ok" size="16" color="error" :title="errorText($t, d.error)">{{ d.ok ? '' : 'mdi-alert-circle-outline' }}</v-icon>
+                  <v-icon v-if="!d.ok" size="16" color="error" :title="errorText($t, d.error)">mdi-alert-circle-outline</v-icon>
                   <span>{{ d.name }}</span>
                 </div>
                 <div v-if="!d.ok" class="text-caption text-error">{{ errorText($t, d.error) }}</div>
