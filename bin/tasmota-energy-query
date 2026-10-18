@@ -66,22 +66,26 @@ poll() {
     return
   fi
 
+  # Multi-channel devices (e.g. Shelly 2.5, SetOption129) report arrays per
+  # channel: sum additive values, average voltage and power factor.
   jq -cn --arg name "$name" --arg ip "$ip" --argjson body "$body" '
+    def sum: if type == "array" then (map(numbers) | add) else . end;
+    def avg: if type == "array" then (map(numbers) | if length > 0 then add / length else null end) else . end;
     $body.StatusSNS.ENERGY as $e |
     {
       name: $name,
       ip: $ip,
       ok: true,
-      power: ($e.Power // null),
-      apparent_power: ($e.ApparentPower // null),
-      reactive_power: ($e.ReactivePower // null),
-      factor: ($e.Factor // null),
-      voltage: ($e.Voltage // null),
-      current: ($e.Current // null),
-      today: ($e.Today // null),
-      yesterday: ($e.Yesterday // null),
-      total: ($e.Total // null),
-      period: ($e.Period // null)
+      power: ($e.Power | sum),
+      apparent_power: ($e.ApparentPower | sum),
+      reactive_power: ($e.ReactivePower | sum),
+      factor: ($e.Factor | avg),
+      voltage: ($e.Voltage | avg),
+      current: ($e.Current | sum),
+      today: ($e.Today | sum),
+      yesterday: ($e.Yesterday | sum),
+      total: ($e.Total | sum),
+      period: ($e.Period | sum)
     }' > "$out"
 }
 
@@ -98,13 +102,16 @@ else
   if ! jq -e 'has("devices")' >/dev/null 2>&1 <"$SETTINGS"; then
     fail "invalid settings file at $SETTINGS"
   fi
-  while IFS=$'\t' read -r name ip user pass; do
+  # One NUL-terminated record per device, fields separated by \x1f. Unlike
+  # @tsv with IFS=$'\t' (tab is IFS whitespace, so empty fields collapse),
+  # this keeps empty fields in place and passes values through unescaped.
+  while IFS=$'\x1f' read -r -d '' name ip user pass; do
     [ -n "$ip" ] || continue
     NAMES+=("${name:-$ip}")
     IPS+=("$ip")
     USERS+=("$user")
     PASSES+=("$pass")
-  done < <(jq -r '.devices[] | [(.name // ""), (.ip // ""), (.user // ""), (.password // "")] | @tsv' "$SETTINGS")
+  done < <(jq -j '.devices[] | [(.name // ""), (.ip // ""), (.user // ""), (.password // "")] | map(tostring) | join("\u001f") + "\u0000"' "$SETTINGS")
 fi
 
 TMPDIR_POLL=$(mktemp -d) || fail "could not create temp directory"

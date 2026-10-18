@@ -105,7 +105,7 @@
                   icon="mdi-delete"
                   color="error"
                   :title="$t('plugin_tasmota_energy.remove_device')"
-                  @click="form.devices.splice(i, 1)"
+                  @click="removeDevice(i)"
                 />
               </v-col>
             </v-row>
@@ -190,7 +190,7 @@
                 <td v-if="hasPrice" class="text-right">{{ costFmt(cost(savedSettings, d.today)) }}</td>
                 <td v-if="hasPrice" class="text-right">{{ costFmt(cost(savedSettings, d.total)) }}</td>
               </template>
-              <td v-else :colspan="hasPrice ? 10 : 8" class="text-right text-medium-emphasis">-</td>
+              <td v-else :colspan="hasPrice ? 11 : 9" class="text-right text-medium-emphasis">-</td>
             </tr>
             <tr v-if="results.some((d) => d.ok)" class="font-weight-medium">
               <td>{{ $t('plugin_tasmota_energy.totals') }}</td>
@@ -217,7 +217,7 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, onMounted, onUnmounted, getCurrentInstance } from 'vue';
+import { ref, computed, onMounted, onUnmounted, getCurrentInstance } from 'vue';
 import { useTasmota, usePolling, loadSettings, saveSettings, queryDevices, DEFAULT_SETTINGS, fmt, cost, num } from './useTasmota.js';
 
 // The host MOS app provides i18n globally; use its translator (same instance
@@ -230,8 +230,8 @@ const savedSettings = ref({ ...DEFAULT_SETTINGS });
 const saving = ref(false);
 const saved = ref(false);
 const saveFailed = ref(false);
-const testState = reactive({}); // device index -> 'testing' | 'ok' | 'error'
-const testMsg = ref({});
+const testState = ref([]); // per device index: 'testing' | 'ok' | 'error'
+const testMsg = ref([]);
 const poll = usePolling(refresh, 5);
 
 const hasPrice = computed(() => num(savedSettings.value.price) > 0);
@@ -241,33 +241,47 @@ const costFmt = (v) => (v === null ? '-' : v.toFixed(2) + ' ' + savedSettings.va
 // almost certainly entered in cents (e.g. 33.44 instead of 0.33).
 const priceError = computed(() => num(form.value.price) >= 1);
 
+const resetTests = () => {
+  testState.value = [];
+  testMsg.value = [];
+};
+
+// Keep test results aligned with their device when one is removed.
+const removeDevice = (i) => {
+  form.value.devices.splice(i, 1);
+  testState.value.splice(i, 1);
+  testMsg.value.splice(i, 1);
+};
+
 const testDevice = async (i) => {
   const d = form.value.devices[i];
   if (!d?.ip) return;
-  testState[i] = 'testing';
-  testMsg.value[i] = '';
+  // The device may be removed or re-indexed (delete/save) while the test
+  // runs, so resolve its current index again when the result arrives.
+  const setResult = (state, msg) => {
+    const idx = form.value.devices.indexOf(d);
+    if (idx === -1) return;
+    testState.value[idx] = state;
+    testMsg.value[idx] = msg;
+  };
+  setResult('testing', '');
   try {
     const out = await queryDevices([d.ip, d.user || '', d.password || '']);
     const res = out.devices?.[0];
     if (res?.ok) {
-      testState[i] = 'ok';
-      testMsg.value[i] = `${d.ip}: ${fmt(res.power, 1)} W, ${$t('plugin_tasmota_energy.today')} ${fmt(res.today, 3)} kWh`;
+      setResult('ok', `${d.ip}: ${fmt(res.power, 1)} W, ${$t('plugin_tasmota_energy.today')} ${fmt(res.today, 3)} kWh`);
     } else {
-      testState[i] = 'error';
-      testMsg.value[i] = res?.error || $t('plugin_tasmota_energy.test_failed');
+      setResult('error', res?.error || $t('plugin_tasmota_energy.test_failed'));
     }
   } catch (e) {
-    testState[i] = 'error';
-    testMsg.value[i] = e.status === 403 ? $t('plugin_tasmota_energy.forbidden') : $t('plugin_tasmota_energy.test_failed');
+    setResult('error', e.status === 403 ? $t('plugin_tasmota_energy.forbidden') : $t('plugin_tasmota_energy.test_failed'));
   }
 };
 
 const save = async () => {
-  saving.value = true;
   saved.value = false;
   saveFailed.value = false;
   if (priceError.value) {
-    saving.value = false;
     saveFailed.value = true;
     return;
   }
@@ -282,13 +296,24 @@ const save = async () => {
       password: String(d.password || ''),
     })).filter((d) => d.ip),
   };
-  const ok = await saveSettings(s);
-  form.value = { ...s, devices: s.devices.map((d) => ({ ...d })) };
-  savedSettings.value = { ...s };
-  saving.value = false;
+  saving.value = true;
+  let ok = false;
+  try {
+    ok = await saveSettings(s);
+  } catch {
+    ok = false;
+  } finally {
+    saving.value = false;
+  }
   saved.value = ok;
   saveFailed.value = !ok;
-  if (ok) await refresh();
+  if (!ok) return;
+  // Saving drops devices without an IP, which shifts the indexes.
+  form.value = { ...s, devices: s.devices.map((d) => ({ ...d })) };
+  resetTests();
+  savedSettings.value = { ...s };
+  poll.start(s.interval);
+  await refresh();
 };
 
 onMounted(async () => {

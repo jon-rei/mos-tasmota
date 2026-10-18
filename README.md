@@ -59,7 +59,7 @@ All settings are configured on the plugin page (**Plugins -> Tasmota Energy Moni
 
 | Setting | Default | Description |
 |---|---|---|
-| `devices` | `[]` | Devices to poll. Each device has a `name` (label in widget and table), an `ip` (device address, required — entries without one are dropped on save), and optional `user` / `password` for Tasmota web credentials. The **Test** button on the settings page verifies one device before saving. |
+| `devices` | `[]` | Devices to poll. Each device has a `name` (label in widget and table; the IP is shown when empty), an `ip` (device address, required — entries without one are dropped on save), and optional `user` / `password` for Tasmota web credentials. The **Test** button on the settings page verifies one device before saving. |
 | `interval` | `5` | Refresh interval in seconds, used for polling on both the plugin page and the widget. Values below 2 are clamped to 2. |
 | `price` | `0` | Electricity price per kWh **in the currency's main unit**, e.g. `0.33` for 33 cents. Saving a value >= 1 is rejected with an error message — it is almost certainly a cents entry. `0` disables the cost display. |
 | `currency` | `EUR` | Currency shown as suffix for costs (e.g. `EUR`, `USD`). Free text, no validation. |
@@ -72,6 +72,9 @@ All settings are configured on the plugin page (**Plugins -> Tasmota Energy Moni
   Tasmota's `PowerOnState 4` (always on) — see the Tasmota documentation.
 - If your device has web credentials configured, enter the same username/password
   used for its web UI.
+- Multi-channel devices (e.g. Shelly 2.5, or `SetOption129 1`) are shown as one
+  row: power, current and energy are summed across channels, voltage and power
+  factor are averaged.
 
 ## Local development
 
@@ -79,13 +82,18 @@ Build the frontend in a Node 22 container — no local Node/npm installation nee
 
 ```bash
 docker run --rm --userns=keep-id -e HOME=/tmp -v $PWD/page:/app -w /app node:22-alpine \
-  sh -c "npm install && npm run build"
+  sh -c "npm ci && npm run build"
 ```
 
-This produces `page/dist/tasmota-energy/` (`remoteEntry.js`, `manifest.json` and
-the federation chunks; the icon is the `mdi-flash` name referenced in
-`manifest.json`, not a file). On a plain Docker daemon (not rootless podman) use
-`-u $(id -u):$(id -g)` instead of `--userns=keep-id`.
+This produces `page/dist/tasmota-energy/` (`remoteEntry.js`, `manifest.json`,
+the federation chunks and `icon.png`, copied from `page/public/`; `icon` is left
+empty in `plugin.config.js` so MOS uses that file). On a plain Docker daemon
+(not rootless podman) use `-u $(id -u):$(id -g)` instead of `--userns=keep-id`.
+
+Rootless podman fails with `newuidmap: Could not set caps` when run from a shell
+that has the `no_new_privs` flag set (`grep NoNewPrivs /proc/self/status` shows
+`1`), as some sandboxed terminals and tools do. Run the build from a regular
+terminal instead.
 
 Test the poll script standalone against a device:
 
