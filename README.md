@@ -23,7 +23,7 @@ The frontend runs it every refresh interval through the MOS plugin query API
 Per device the script polls Tasmota's HTTP API:
 
 ```
-http://<device-ip>/cm?cmnd=Status%208        # -> StatusSNS.ENERGY
+http://<device-address>/cm?cmnd=Status%208   # -> StatusSNS.ENERGY
 ```
 
 Optional Tasmota web credentials are passed as `user=...&password=...` (Tasmota only
@@ -45,19 +45,19 @@ The plugin is available through the MOS Hub via my template repository
 3. **MOS Hub -> Plugins -> Tasmota Energy Monitor -> Install**, pick the release shown
    (e.g. `v0.1.0`). MOS downloads the `.deb` from the release and installs it
    (frontend -> `/var/www/mos-plugins/tasmota-energy/`, poll script -> `/usr/bin/plugins/`).
-4. Configure it: **Plugins -> Tasmota Energy Monitor** — add your devices (name, IP,
+4. Configure it: **Plugins -> Tasmota Energy Monitor** — add your devices (name, IP or hostname,
    optional username/password), set refresh interval, electricity price and currency,
    then **Save** (the per-device **Test** button verifies connectivity).
    The electricity price is per kWh **in your currency's main unit**, e.g. `0.33` for
    33 cents — entering it in cents (e.g. `33.44`) is rejected with an error message.
-5. Add the widget: **Dashboard -> edit -> add the Tasmota Energy card**.
+5. Add the widget: **Dashboard -> edit -> add the Tasmota Energy Monitor widget**.
 
 Requires an admin account in MOS, and the MOS host must be able to reach the Tasmota
-device over HTTP (`curl http://<device-ip>/cm?cmnd=Status%208` should return JSON).
+device over HTTP (`curl http://<device-address>/cm?cmnd=Status%208` should return JSON).
 
 ## Settings
 
-All settings are configured on the plugin page (**Plugins -> Tasmota Energy Monitor**)
+All settings are configured on the plugin page (**Plugins -> Tasmota Energy Monitor**).
 
 | Setting | Default | Description |
 |---|---|---|
@@ -78,12 +78,25 @@ All settings are configured on the plugin page (**Plugins -> Tasmota Energy Moni
   row: power, current and energy are summed across channels, voltage and power
   factor are averaged.
 
+## Troubleshooting
+
+Errors are shown per device in the widget and the table, and by the **Test** button.
+
+| Message | Cause / fix |
+|---|---|
+| Device unreachable | Wrong address, device offline, or the MOS host cannot reach that network. Check from the MOS host: `curl http://<device-address>/cm?cmnd=Status%208` |
+| Wrong username or password | The device has web credentials set; enter the same username/password as for its web UI. |
+| No energy data | The device answers but reports no energy readings — firmware or template without energy monitoring. |
+| Invalid address | Use an IPv4/IPv6 address or hostname, optionally with `:port` — no `http://`, paths or spaces. |
+| Energy data requires an admin account | The MOS query and settings APIs are admin-only; log in to MOS as an admin. |
+| Invalid plugin settings | The settings file is damaged; open the plugin page and save the settings again. |
+
 ## Local development
 
-Build the frontend in a Node 22 container — no local Node/npm installation needed:
+Build the frontend in a Node LTS container — no local Node/npm installation needed:
 
 ```bash
-docker run --rm --userns=keep-id -e HOME=/tmp -v $PWD/page:/app -w /app node:22-alpine \
+docker run --rm --userns=keep-id -e HOME=/tmp -v $PWD/page:/app -w /app node:lts-alpine \
   sh -c "npm ci && npm run build"
 ```
 
@@ -92,17 +105,15 @@ the federation chunks and `icon.png`, copied from `page/public/`; `icon` is left
 empty in `plugin.config.js` so MOS uses that file). On a plain Docker daemon
 (not rootless podman) use `-u $(id -u):$(id -g)` instead of `--userns=keep-id`.
 
-Rootless podman fails with `newuidmap: Could not set caps` when run from a shell
-that has the `no_new_privs` flag set (`grep NoNewPrivs /proc/self/status` shows
-`1`), as some sandboxed terminals and tools do. Run the build from a regular
-terminal instead.
+If rootless podman fails with `newuidmap: Could not set caps`, your shell has
+`no_new_privs` set (some IDE terminals do); run the build from a regular terminal.
 
 Test the poll script standalone against a device:
 
 ```bash
-./bin/tasmota-energy-query 192.168.x.x
-# or against a settings file like on the MOS host:
-TASMOTA_ENERGY_SETTINGS=./settings.json ./bin/tasmota-energy-query
+./bin/tasmota-energy-query <device-address> [user password]
+# or against a settings file with your devices, like on the MOS host:
+TASMOTA_ENERGY_SETTINGS=/path/to/settings.json ./bin/tasmota-energy-query
 ```
 
 ## Releasing
