@@ -36,6 +36,11 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: '22'
+          cache: npm
+          cache-dependency-path: page/package-lock.json
+
+      - name: Lint poll script
+        run: shellcheck bin/tasmota-energy-query
 
       - name: Build Vue plugin
         working-directory: page
@@ -61,7 +66,7 @@ jobs:
           Priority: optional
           Architecture: all
           Depends: bash, curl, jq
-          Maintainer: jon-rei
+          Maintainer: jon-rei <21036205+jon-rei@users.noreply.github.com>
           Description: Tasmota Energy Monitor plugin for MOS
            Installs the tasmota-energy-query script (/usr/bin/plugins) and the
            built plugin frontend (var/www/mos-plugins/tasmota-energy) for the

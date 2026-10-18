@@ -5,7 +5,8 @@ import { writeFileSync, mkdirSync } from 'fs';
 import { resolve } from 'path';
 import pluginConfig from './plugin.config.js';
 
-const PLUGIN_VERSION = process.env.PLUGIN_VERSION || pluginConfig.version;
+// The release tag is the only version source: CI passes it as PLUGIN_VERSION.
+const PLUGIN_VERSION = process.env.PLUGIN_VERSION || '0.0.0-dev';
 const PLUGIN_NAME = pluginConfig.name;
 
 const generateManifest = () => ({
