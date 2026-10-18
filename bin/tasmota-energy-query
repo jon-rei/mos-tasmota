@@ -20,7 +20,13 @@
 #     "totals": { "power", "apparent_power", "reactive_power",
 #                 "today", "yesterday", "total" }
 #   }
-# On a hard failure (e.g. settings missing): { "ok": false, "error": "..." }
+# A missing settings file (nothing saved yet) yields an empty device list.
+# On a hard failure: { "ok": false, "error": "<code>" }
+#
+# Errors are short codes, translated by the frontend (locales "errors"):
+#   per device:  unreachable, auth_failed, no_energy
+#   hard:        missing_jq, missing_curl, settings_invalid, tmpdir_failed
+#
 # Always exits 0 so the query API reports success and the frontend gets
 # the structured error instead of a bare exit code.
 #
@@ -34,13 +40,20 @@ CURL_CONNECT_TIMEOUT=3
 
 uri() { printf '%s' "$1" | jq -Rr @uri; }
 
+# $1 is one of the error codes above (plain identifier, so printf is safe
+# and works even when jq itself is missing).
 fail() {
-  jq -cn --arg msg "$1" '{ok: false, error: $msg}'
+  printf '{"ok":false,"error":"%s"}\n' "$1"
   exit 0
 }
 
-command -v jq >/dev/null 2>&1 || fail "jq not found on the MOS host"
-command -v curl >/dev/null 2>&1 || fail "curl not found on the MOS host"
+empty_result() {
+  jq -cn '{ok: true, devices: [], totals: {power: 0, apparent_power: 0, reactive_power: 0, today: 0, yesterday: 0, total: 0}}'
+  exit 0
+}
+
+command -v jq >/dev/null 2>&1 || fail missing_jq
+command -v curl >/dev/null 2>&1 || fail missing_curl
 
 # Poll one device. Writes the per-device result JSON to the file given as $5.
 #   poll <name> <ip> <user> <password> <outfile>
@@ -60,9 +73,17 @@ poll() {
     return
   fi
 
-  if ! jq -e 'has("StatusSNS")' >/dev/null 2>&1 <<<"$body"; then
-    jq -cn --arg name "$name" --arg ip "$ip" \
-      '{name: $name, ip: $ip, ok: false, error: "no energy data (wrong credentials or not an energy-monitoring Tasmota)"}' > "$out"
+  # Tasmota answers wrong/missing credentials with
+  # {"WARNING":"Need user=<username>&password=<password>"}.
+  local error=""
+  if jq -e 'type == "object" and has("WARNING")' >/dev/null 2>&1 <<<"$body"; then
+    error="auth_failed"
+  elif ! jq -e '.StatusSNS.ENERGY | type == "object"' >/dev/null 2>&1 <<<"$body"; then
+    error="no_energy"
+  fi
+  if [ -n "$error" ]; then
+    jq -cn --arg name "$name" --arg ip "$ip" --arg error "$error" \
+      '{name: $name, ip: $ip, ok: false, error: $error}' > "$out"
     return
   fi
 
@@ -98,9 +119,10 @@ if [ $# -ge 1 ]; then
   USERS+=("${2:-}")
   PASSES+=("${3:-}")
 else
-  [ -f "$SETTINGS" ] || fail "settings file not found at $SETTINGS - save the plugin settings first"
+  # No settings file yet just means nothing has been saved: no devices.
+  [ -f "$SETTINGS" ] || empty_result
   if ! jq -e 'has("devices")' >/dev/null 2>&1 <"$SETTINGS"; then
-    fail "invalid settings file at $SETTINGS"
+    fail settings_invalid
   fi
   # One NUL-terminated record per device, fields separated by \x1f. Unlike
   # @tsv with IFS=$'\t' (tab is IFS whitespace, so empty fields collapse),
@@ -114,15 +136,13 @@ else
   done < <(jq -j '.devices[] | [(.name // ""), (.ip // ""), (.user // ""), (.password // "")] | map(tostring) | join("\u001f") + "\u0000"' "$SETTINGS")
 fi
 
-TMPDIR_POLL=$(mktemp -d) || fail "could not create temp directory"
+[ "${#IPS[@]}" -eq 0 ] && empty_result
+
+TMPDIR_POLL=$(mktemp -d) || fail tmpdir_failed
 trap 'rm -rf "$TMPDIR_POLL"' EXIT
 
 # Poll all devices in parallel so one slow/unreachable device does not
 # delay the others (each curl is bounded by its own timeout anyway).
-if [ "${#IPS[@]}" -eq 0 ]; then
-  jq -cn '{ok: true, devices: [], totals: {power: 0, apparent_power: 0, reactive_power: 0, today: 0, yesterday: 0, total: 0}}'
-  exit 0
-fi
 for i in "${!IPS[@]}"; do
   poll "${NAMES[$i]}" "${IPS[$i]}" "${USERS[$i]}" "${PASSES[$i]}" "$TMPDIR_POLL/$i.json" &
 done

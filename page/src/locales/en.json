@@ -39,6 +39,15 @@
     "open_settings": "Open settings",
     "load_failed": "Could not load energy data",
     "forbidden": "Energy data requires an admin account",
-    "updated": "Updated"
+    "updated": "Updated",
+    "errors": {
+      "unreachable": "Device unreachable",
+      "auth_failed": "Wrong username or password",
+      "no_energy": "No energy data – not an energy-monitoring Tasmota",
+      "missing_jq": "jq is not installed on the MOS host",
+      "missing_curl": "curl is not installed on the MOS host",
+      "settings_invalid": "Invalid plugin settings – save them again",
+      "tmpdir_failed": "Could not create a temporary directory on the MOS host"
+    }
   }
 }

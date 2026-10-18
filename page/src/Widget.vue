@@ -6,7 +6,7 @@
     <div v-else-if="error" class="text-center pa-3">
       <v-icon size="32" color="grey" class="mb-2">mdi-flash</v-icon>
       <div class="text-body-2 text-medium-emphasis">
-        {{ error === 'forbidden' ? $t('plugin_tasmota_energy.forbidden') : $t('plugin_tasmota_energy.load_failed') }}
+        {{ errorText($t, error) }}
       </div>
     </div>
     <div v-else-if="settings.devices.length === 0" class="text-center pa-3">
@@ -41,17 +41,17 @@
 
       <div v-for="d in results" :key="d.ip + d.name" class="te-row d-flex align-center">
         <v-icon v-if="d.ok" size="18" color="green" class="mr-1">mdi-power-plug</v-icon>
-        <v-icon v-else size="18" color="error" class="mr-1" :title="d.error">mdi-power-plug-off</v-icon>
+        <v-icon v-else size="18" color="error" class="mr-1" :title="errorText($t, d.error)">mdi-power-plug-off</v-icon>
         <div class="te-text">
           <div class="d-flex align-baseline" style="gap: 8px">
             <span class="text-body-2 te-name" :title="d.name">{{ d.name }}</span>
             <span class="text-body-2 font-weight-medium te-power">{{ d.ok ? fmt(d.power, 1) + ' W' : '-' }}</span>
           </div>
-          <div class="text-caption te-sub" :class="d.ok ? 'text-medium-emphasis' : 'text-error'" :title="d.ok ? undefined : d.error">
+          <div class="text-caption te-sub" :class="d.ok ? 'text-medium-emphasis' : 'text-error'" :title="d.ok ? undefined : errorText($t, d.error)">
             <template v-if="d.ok">
               {{ $t('plugin_tasmota_energy.today') }} {{ fmt(d.today, 3) }} kWh · {{ $t('plugin_tasmota_energy.total') }} {{ fmt(d.total, 3) }} kWh
             </template>
-            <template v-else>{{ d.error }}</template>
+            <template v-else>{{ errorText($t, d.error) }}</template>
           </div>
         </div>
         <v-btn
@@ -74,7 +74,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useTasmota, usePolling, loadSettings, DEFAULT_SETTINGS, fmt, cost, num, PLUGIN } from './useTasmota.js';
+import { useTasmota, usePolling, loadSettings, DEFAULT_SETTINGS, fmt, cost, num, errorText, PLUGIN } from './useTasmota.js';
 
 const { loading, error, results, totals, refresh } = useTasmota();
 const settings = ref({ ...DEFAULT_SETTINGS, devices: [] });

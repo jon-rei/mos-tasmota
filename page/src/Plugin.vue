@@ -146,7 +146,7 @@
           <v-progress-circular indeterminate size="24" width="2" />
         </div>
         <div v-else-if="error" class="text-body-2 text-medium-emphasis">
-          {{ error === 'forbidden' ? $t('plugin_tasmota_energy.forbidden') : $t('plugin_tasmota_energy.load_failed') }}
+          {{ errorText($t, error) }}
         </div>
         <div v-else-if="results.length === 0" class="text-body-2 text-medium-emphasis">
           {{ $t('plugin_tasmota_energy.no_devices') }}
@@ -172,10 +172,10 @@
             <tr v-for="d in results" :key="d.ip + d.name">
               <td>
                 <div class="d-flex align-center" style="gap: 6px">
-                  <v-icon v-if="!d.ok" size="16" color="error" :title="d.error">{{ d.ok ? '' : 'mdi-alert-circle-outline' }}</v-icon>
+                  <v-icon v-if="!d.ok" size="16" color="error" :title="errorText($t, d.error)">{{ d.ok ? '' : 'mdi-alert-circle-outline' }}</v-icon>
                   <span>{{ d.name }}</span>
                 </div>
-                <div v-if="!d.ok" class="text-caption text-error">{{ d.error }}</div>
+                <div v-if="!d.ok" class="text-caption text-error">{{ errorText($t, d.error) }}</div>
               </td>
               <template v-if="d.ok">
                 <td class="text-right">{{ fmt(d.power, 1) }}</td>
@@ -218,7 +218,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, getCurrentInstance } from 'vue';
-import { useTasmota, usePolling, loadSettings, saveSettings, queryDevices, DEFAULT_SETTINGS, fmt, cost, num } from './useTasmota.js';
+import { useTasmota, usePolling, loadSettings, saveSettings, queryDevices, DEFAULT_SETTINGS, fmt, cost, num, errorText } from './useTasmota.js';
 
 // The host MOS app provides i18n globally; use its translator (same instance
 // the template's $t resolves to) rather than bundling vue-i18n into the remote.
@@ -271,7 +271,7 @@ const testDevice = async (i) => {
     if (res?.ok) {
       setResult('ok', `${d.ip}: ${fmt(res.power, 1)} W, ${$t('plugin_tasmota_energy.today')} ${fmt(res.today, 3)} kWh`);
     } else {
-      setResult('error', res?.error || $t('plugin_tasmota_energy.test_failed'));
+      setResult('error', res?.error ? errorText($t, res.error) : $t('plugin_tasmota_energy.test_failed'));
     }
   } catch (e) {
     setResult('error', e.status === 403 ? $t('plugin_tasmota_energy.forbidden') : $t('plugin_tasmota_energy.test_failed'));

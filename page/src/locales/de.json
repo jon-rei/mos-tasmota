@@ -39,6 +39,15 @@
     "open_settings": "Einstellungen öffnen",
     "load_failed": "Energiedaten konnten nicht geladen werden",
     "forbidden": "Für Energiedaten ist ein Administratorkonto erforderlich",
-    "updated": "Aktualisiert"
+    "updated": "Aktualisiert",
+    "errors": {
+      "unreachable": "Gerät nicht erreichbar",
+      "auth_failed": "Falscher Benutzername oder falsches Passwort",
+      "no_energy": "Keine Energiedaten – kein Tasmota mit Energiemessung",
+      "missing_jq": "jq ist auf dem MOS-Host nicht installiert",
+      "missing_curl": "curl ist auf dem MOS-Host nicht installiert",
+      "settings_invalid": "Ungültige Plugin-Einstellungen – bitte erneut speichern",
+      "tmpdir_failed": "Temporäres Verzeichnis auf dem MOS-Host konnte nicht erstellt werden"
+    }
   }
 }

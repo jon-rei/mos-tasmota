@@ -83,7 +83,7 @@ export function useTasmota() {
   const totals = ref(null);
   const lastUpdate = ref(null);
 
-  const refresh = async () => {
+  const run = async () => {
     try {
       const out = await queryDevices();
       results.value = out.devices || [];
@@ -97,26 +97,56 @@ export function useTasmota() {
     }
   };
 
+  // Callers (poll timer, refresh button, save) share one in-flight query
+  // instead of starting another script run on the MOS host.
+  let inflight = null;
+  const refresh = () => {
+    if (!inflight) inflight = run().finally(() => (inflight = null));
+    return inflight;
+  };
+
   return { loading, error, results, totals, lastUpdate, refresh };
 }
 
-// Poll while the page is visible; pauses in background tabs.
+// Poll while the page is visible; pauses in background tabs. The next run is
+// scheduled only after the previous one finished, so slow or unreachable
+// devices can't pile up script runs on the MOS host.
 export function usePolling(fn, seconds) {
-  let timer = null;
-  const tick = () => {
-    if (!document.hidden) fn();
+  let timer = null; // pending timeout; null while a run is in progress
+  let ms = 0;
+  let generation = 0; // bumped by start/stop so stale runs don't reschedule
+
+  const run = async (gen) => {
+    timer = null;
+    if (!document.hidden) {
+      try {
+        await fn();
+      } catch {
+        // fn reports its own errors; keep polling
+      }
+    }
+    if (gen === generation) timer = setTimeout(() => run(gen), ms);
   };
+
   const onVisible = () => {
-    if (!document.hidden) fn();
+    // Refresh right away when the tab comes back, unless a run is in progress.
+    if (!document.hidden && timer) {
+      clearTimeout(timer);
+      run(generation);
+    }
   };
+
   return {
     start(sec = seconds) {
       this.stop();
-      timer = setInterval(tick, Math.max(2, Number(sec) || 5) * 1000);
+      ms = Math.max(2, Number(sec) || 5) * 1000;
+      const gen = generation;
+      timer = setTimeout(() => run(gen), ms);
       document.addEventListener('visibilitychange', onVisible);
     },
     stop() {
-      if (timer) clearInterval(timer);
+      generation++;
+      if (timer) clearTimeout(timer);
       timer = null;
       document.removeEventListener('visibilitychange', onVisible);
     },
@@ -132,6 +162,17 @@ export const num = (v) => {
 export const fmt = (v, digits = 2) => {
   const n = num(v);
   return n === null ? '-' : n.toFixed(digits);
+};
+
+// Translate an error code from the script or query layer. Unknown errors
+// (e.g. raw output of a failed query) fall back to the generic message.
+export const errorText = (t, code) => {
+  if (code === 'forbidden') return t('plugin_tasmota_energy.forbidden');
+  const key = `plugin_tasmota_energy.errors.${code}`;
+  const text = code ? t(key) : key;
+  if (text !== key) return text;
+  const generic = t('plugin_tasmota_energy.load_failed');
+  return code && code !== 'query_failed' && code !== 'failed' ? `${generic} (${code})` : generic;
 };
 
 // cost for a kWh value: '-' when no price is configured, else price * kWh
