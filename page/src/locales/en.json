@@ -7,7 +7,7 @@
     "add_device": "Add device",
     "remove_device": "Remove device",
     "device_name": "Name",
-    "device_ip": "IP address",
+    "device_ip": "IP address or hostname",
     "device_user": "Username (optional)",
     "device_password": "Password (optional)",
     "interval": "Refresh interval (seconds)",
@@ -41,6 +41,7 @@
     "forbidden": "Energy data requires an admin account",
     "updated": "Updated",
     "errors": {
+      "invalid_host": "Invalid address – use an IP or hostname, optionally with :port",
       "unreachable": "Device unreachable",
       "auth_failed": "Wrong username or password",
       "no_energy": "No energy data – not an energy-monitoring Tasmota",

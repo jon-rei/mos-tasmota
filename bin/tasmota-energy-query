@@ -24,7 +24,7 @@
 # On a hard failure: { "ok": false, "error": "<code>" }
 #
 # Errors are short codes, translated by the frontend (locales "errors"):
-#   per device:  unreachable, auth_failed, no_energy
+#   per device:  invalid_host, unreachable, auth_failed, no_energy
 #   hard:        missing_jq, missing_curl, settings_invalid, tmpdir_failed
 #
 # Always exits 0 so the query API reports success and the frontend gets
@@ -37,6 +37,10 @@ set -u
 SETTINGS="${TASMOTA_ENERGY_SETTINGS:-/boot/optional/plugins/tasmota-energy/settings.json}"
 CURL_TIMEOUT=5
 CURL_CONNECT_TIMEOUT=3
+
+# Device address: DNS name, IPv4 or bracketed IPv6, optional :port. Anything
+# else (/ ? # @ whitespace ...) would change the URL, so it is rejected.
+HOST_RE='^([A-Za-z0-9][A-Za-z0-9.-]*|\[[0-9A-Fa-f:.]+\])(:[0-9]{1,5})?$'
 
 uri() { printf '%s' "$1" | jq -Rr @uri; }
 
@@ -59,15 +63,33 @@ command -v curl >/dev/null 2>&1 || fail missing_curl
 #   poll <name> <ip> <user> <password> <outfile>
 poll() {
   local name="$1" ip="$2" user="$3" pass="$4" out="$5"
-  local url="http://${ip}/cm?"
+
+  # Accept a bare IPv6 address (two or more colons) by bracketing it.
+  local host="$ip"
+  if [[ $host == *:*:* && $host != \[* ]]; then
+    host="[$host]"
+  fi
+  if [[ ! $host =~ $HOST_RE ]]; then
+    jq -cn --arg name "$name" --arg ip "$ip" \
+      '{name: $name, ip: $ip, ok: false, error: "invalid_host"}' > "$out"
+    return
+  fi
+
+  local url="http://${host}/cm?"
   if [ -n "$user" ] || [ -n "$pass" ]; then
     url="${url}user=$(uri "$user")&password=$(uri "$pass")&"
   fi
   url="${url}cmnd=Status%208"
 
+  # Hand the URL to curl on stdin (--config -) instead of as an argument so
+  # the credentials in it don't show up in the process list. The host is
+  # validated and user/password are URI-encoded, so the URL contains no
+  # quotes or backslashes that would need escaping in the config syntax.
+  # --globoff keeps curl from treating [ ] in IPv6 addresses as URL globs.
   local body
-  if ! body=$(curl --silent --show-error -m "$CURL_TIMEOUT" \
-                   --connect-timeout "$CURL_CONNECT_TIMEOUT" "$url" 2>/dev/null); then
+  if ! body=$(curl --silent --show-error --globoff -m "$CURL_TIMEOUT" \
+                   --connect-timeout "$CURL_CONNECT_TIMEOUT" --config - \
+                   <<<"url = \"$url\"" 2>/dev/null); then
     jq -cn --arg name "$name" --arg ip "$ip" \
       '{name: $name, ip: $ip, ok: false, error: "unreachable"}' > "$out"
     return

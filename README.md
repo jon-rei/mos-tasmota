@@ -26,9 +26,11 @@ Per device the script polls Tasmota's HTTP API:
 http://<device-ip>/cm?cmnd=Status%208        # -> StatusSNS.ENERGY
 ```
 
-Optional Tasmota web credentials are passed as `user=...&password=...` and are stored in
-the plugin settings on the MOS boot drive (`/boot/optional/plugins/tasmota-energy/settings.json`).
-The settings API requires an admin account.
+Optional Tasmota web credentials are passed as `user=...&password=...` (Tasmota only
+accepts them in the URL, so they travel unencrypted over plain HTTP on your LAN). They are
+stored **in plain text** in the plugin settings on the MOS boot drive
+(`/boot/optional/plugins/tasmota-energy/settings.json`), so use credentials that are unique
+to your Tasmota devices. The settings API requires an admin account.
 
 ## Install
 
@@ -59,7 +61,7 @@ All settings are configured on the plugin page (**Plugins -> Tasmota Energy Moni
 
 | Setting | Default | Description |
 |---|---|---|
-| `devices` | `[]` | Devices to poll. Each device has a `name` (label in widget and table; the IP is shown when empty), an `ip` (device address, required — entries without one are dropped on save), and optional `user` / `password` for Tasmota web credentials. The **Test** button on the settings page verifies one device before saving. |
+| `devices` | `[]` | Devices to poll. Each device has a `name` (label in widget and table; the IP is shown when empty), an `ip` (device address, required — entries without one are dropped on save; an IPv4/IPv6 address or hostname, optionally with `:port`), and optional `user` / `password` for Tasmota web credentials. The **Test** button on the settings page verifies one device before saving. |
 | `interval` | `5` | Refresh interval in seconds, used for polling on both the plugin page and the widget. Values below 2 are clamped to 2. |
 | `price` | `0` | Electricity price per kWh **in the currency's main unit**, e.g. `0.33` for 33 cents. Saving a value >= 1 is rejected with an error message — it is almost certainly a cents entry. `0` disables the cost display. |
 | `currency` | `EUR` | Currency shown as suffix for costs (e.g. `EUR`, `USD`). Free text, no validation. |
