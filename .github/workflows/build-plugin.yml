@@ -3,7 +3,7 @@ name: Build and Release
 on:
   push:
     tags:
-      - 'v[0-9]*'
+      - '[0-9]*'
   workflow_dispatch:
     inputs:
       version:
@@ -28,7 +28,7 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             VERSION="${{ github.event.inputs.version }}"
           else
-            VERSION="${GITHUB_REF#refs/tags/v}"
+            VERSION="${GITHUB_REF#refs/tags/}"
           fi
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
@@ -80,8 +80,8 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: v${{ steps.version.outputs.VERSION }}
-          name: v${{ steps.version.outputs.VERSION }}
+          tag_name: ${{ steps.version.outputs.VERSION }}
+          name: ${{ steps.version.outputs.VERSION }}
           files: |
             tasmota-energy-${{ steps.version.outputs.VERSION }}-1+mos-plugin_all.deb
             tasmota-energy-${{ steps.version.outputs.VERSION }}-1+mos-plugin_all.deb.md5

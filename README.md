@@ -43,7 +43,7 @@ The plugin is available through the MOS Hub via my template repository
    `https://github.com/jon-rei/mos-templates` to the repository list and save — MOS
    clones and indexes the repository.
 3. **MOS Hub -> Plugins -> Tasmota Energy Monitor -> Install**, pick the release shown
-   (e.g. `v0.1.0`). MOS downloads the `.deb` from the release and installs it
+   (e.g. `1.0.0`). MOS downloads the `.deb` from the release and installs it
    (frontend -> `/var/www/mos-plugins/tasmota-energy/`, poll script -> `/usr/bin/plugins/`).
 4. Configure it: **Plugins -> Tasmota Energy Monitor** — add your devices (name, IP or hostname,
    optional username/password), set refresh interval, electricity price and currency,
@@ -119,10 +119,11 @@ TASMOTA_ENERGY_SETTINGS=/path/to/settings.json ./bin/tasmota-energy-query
 ## Releasing
 
 The GitHub Actions workflow builds the Vue plugin and packages it as
-`tasmota-energy-<version>-1+mos-plugin_all.deb` when a tag is pushed:
+`tasmota-energy-<version>-1+mos-plugin_all.deb` when a tag is pushed. Tags are
+plain versions without a `v` prefix (MOS does not support it):
 
 ```bash
-git tag v0.1.0 && git push origin v0.1.0
+git tag 1.0.0 && git push origin 1.0.0
 ```
 
 The tag is the only version source: the workflow passes it to the build as
